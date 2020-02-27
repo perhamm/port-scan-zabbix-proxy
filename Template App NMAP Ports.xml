@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>4.4</version>
+    <date>2020-02-18T09:32:52Z</date>
+    <groups>
+        <group>
+            <name>Templates</name>
+        </group>
+    </groups>
+    <templates>
+        <template>
+            <template>Template App NMAP Ports</template>
+            <name>Template App NMAP Ports</name>
+            <groups>
+                <group>
+                    <name>Templates</name>
+                </group>
+            </groups>
+            <applications>
+                <application>
+                    <name>Open Ports</name>
+                </application>
+            </applications>
+            <discovery_rules>
+                <discovery_rule>
+                    <name>Open Ports</name>
+                    <type>TRAP</type>
+                    <key>port-discovery</key>
+                    <delay>0</delay>
+                    <lifetime>1d</lifetime>
+                    <item_prototypes>
+                        <item_prototype>
+                            <name>Status of port {#IP}:{#PORT}/{#PROTO} {#SERVICE}</name>
+                            <type>EXTERNAL</type>
+                            <key>nmapcheck[{#IP},{#PORT},{#PROTO}]</key>
+                            <delay>1h</delay>
+                            <history>7d</history>
+                            <trends>0</trends>
+                            <applications>
+                                <application>
+                                    <name>Open Ports</name>
+                                </application>
+                            </applications>
+                            <application_prototypes>
+                                <application_prototype>
+                                    <name>{#IP}</name>
+                                </application_prototype>
+                            </application_prototypes>
+                            <valuemap>
+                                <name>Service state</name>
+                            </valuemap>
+                            <trigger_prototypes>
+                                <trigger_prototype>
+                                    <expression>{last()}=1</expression>
+                                    <name>Port {#IP}:{#PORT}/{#PROTO} {#SERVICE} is open</name>
+                                    <priority>WARNING</priority>
+                                    <tags>
+                                        <tag>
+                                            <tag>portopen</tag>
+                                        </tag>
+                                    </tags>
+                                </trigger_prototype>
+                            </trigger_prototypes>
+                        </item_prototype>
+                    </item_prototypes>
+                </discovery_rule>
+            </discovery_rules>
+        </template>
+    </templates>
+    <value_maps>
+        <value_map>
+            <name>Service state</name>
+            <mappings>
+                <mapping>
+                    <value>0</value>
+                    <newvalue>Down</newvalue>
+                </mapping>
+                <mapping>
+                    <value>1</value>
+                    <newvalue>Up</newvalue>
+                </mapping>
+            </mappings>
+        </value_map>
+    </value_maps>
+</zabbix_export>

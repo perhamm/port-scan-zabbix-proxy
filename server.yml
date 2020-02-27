@@ -1,0 +1,174 @@
+---
+- name: Install and configure
+  hosts: server
+  become: yes
+
+  pre_tasks:
+    - name: Add epel-release repo
+      yum:
+        name: epel-release
+        state: present
+        
+    - name: disable ssl for repo epel
+      lineinfile: 
+        dest: /etc/yum.repos.d/epel.repo
+        insertafter: 'enabled=1' 
+        line: 'sslverify=0'
+        
+    - name: Put SELinux in permissive mode, logging actions that would be blocked.
+      selinux:
+        policy: targeted
+        state: permissive
+
+        
+    - name: copy config
+      copy: 
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: '0755'
+      with_items:
+        - { src: 'files/80-443.sh', dest: '/root/' }
+        - { src: 'files/zabbix.repo', dest: '/etc/yum.repos.d/' }
+        - { src: 'files/docker-ce.repo', dest: '/etc/yum.repos.d/' }
+        - { src: 'files/port-discovery.sh', dest: '/root/' }
+        - { src: 'files/crontab', dest: '/etc/' }
+        - { src: 'files/zabbix_proxy.psk', dest: '/home/zabbix/' }
+        - { src: 'files/nmapcheck', dest: '/usr/lib/zabbix/externalscripts/' }
+        - { src: 'files/lld-disks.py', dest: '/usr/local/bin/' }
+        - { src: 'files/userparameter_diskstats.conf', dest: '/etc/zabbix/zabbix_agentd.d/' }
+        
+        
+        
+    - name: copy config
+      copy: 
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: '0644'
+      with_items:
+        - { src: 'files/zabbix', dest: '/etc/sudoers.d/' }
+
+
+        
+    - name: Install a list of packages
+      yum:
+        name:
+          - net-tools
+          - tcpdump
+          - bind-utils
+          - firewalld
+          - fail2ban
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - zabbix-proxy-sqlite3
+          - zabbix-agent
+          - nmap
+          - python-pip
+          - zabbix-get
+          - zabbix-sender
+        update_cache: yes
+        disable_gpg_check: yes
+        state: present
+        
+    - name: Directory for sqlite
+      file:
+        path: /var/lib/sqlite
+        state: directory
+        owner: zabbix
+        group: zabbix
+
+
+    - name: Docker-PY
+      pip:
+        name: "{{ item }}"
+      with_items:
+      - six
+      - docker-py
+
+        
+    - name: daemon started
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+        
+    - name: daemon started
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+        
+        
+    - name: copy config
+      copy: 
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: '0644'
+      with_items:
+        - { src: 'files/zabbix_agentd.conf', dest: '/etc/zabbix' }
+        - { src: 'files/zabbix_proxy.conf', dest: '/etc/zabbix' }
+      notify:
+      - restart zabbix_agent
+      - restart zabbix_proxy
+        
+        
+    - name: enable firewalld rules 
+      firewalld:
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+        zone: public
+        immediate: yes
+      with_items:
+        - 5357/tcp
+        - 5358/tcp
+
+        
+    - name: daemon started
+      systemd:
+        name: zabbix-proxy
+        state: started
+        enabled: yes
+        
+    - name: daemon started
+      systemd:
+        name: zabbix-agent
+        state: started
+        enabled: yes
+        
+        
+        
+    - name: start a container
+      docker_container:
+        name: zabbix-5358
+        image: schors/tgdante2
+        state: started
+        restart_policy: unless-stopped
+        ports:
+         - "5358:1080"
+        env:
+            USER: "zabbix"
+            PASS: "31415926"
+            
+            
+            
+  handlers:
+  - name: restart zabbix_agent
+    service:
+      name: zabbix-agent
+      state: restarted
+        
+  - name: restart zabbix_proxy
+    service:
+      name: zabbix-proxy
+      state: restarted
+        
